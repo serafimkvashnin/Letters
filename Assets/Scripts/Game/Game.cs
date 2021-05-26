@@ -23,19 +23,20 @@ namespace Assets.Scripts
         [SerializeField]
         private ParticleSystem rightAnswerParticles;
 
-        private CardBundleData currentCardBundle;
         private CardBundleData[] cardBundles;
         private DifficultyData[] difficulties;
 
         private DifficultyData currentDifficulty;
         private int currentDifficultyIndex;
 
-        private Card cardToFind;
+        private Dictionary<string, Dictionary<int, Card>> loadedCardBundles;
+
+        private CardBundleData currentCardBundle;
         private Dictionary<int, Card> currentCardBundleCards;
+
+        private Card cardToFind;
         private Dictionary<int, Card> selectedCards;
         private Dictionary<int, Card> shownCards;
-
-        private Dictionary<string, Dictionary<int, Card>> loadedCardBundles;
 
         private bool gameStarted = false;
 
@@ -55,6 +56,8 @@ namespace Assets.Scripts
             shownCards = new Dictionary<int, Card>();
             loadedCardBundles = new Dictionary<string, Dictionary<int, Card>>();
 
+            LoadCardsFromBundles();
+
             SwitchLevel();
         }
 
@@ -72,43 +75,40 @@ namespace Assets.Scripts
             }
         }
 
-        /// <summary> Populates <value>allCards</value> from <c>CardBundleData</c>. </summary>
-        private void PopulateCards()
+        /// <summary> Populates <value>loadedCardBundles</value> from <value>cardBundles</value>. </summary>
+        private void LoadCardsFromBundles()
+        {
+            foreach (var cardBundle in cardBundles)
+            {
+                var loadedCards = new Dictionary<int, Card>();
+                foreach (var cardData in cardBundle.CardData)
+                {
+                    var cardObject = Instantiate(cardPrefab);
+                    cardObject.SetActive(false);
+
+                    var cardScript = cardObject.GetComponent<Card>();
+                    cardScript.CardData = cardData;
+
+                    loadedCards.Add(cardScript.Id, cardScript);
+                }
+                loadedCardBundles.Add(cardBundle.name, loadedCards);
+            }
+        }
+
+        private void ChangeCardBundle()
         {
             var cardBundle = cardBundles[UnityEngine.Random.Range(0, cardBundles.Length)];
-
             if (currentCardBundle != null && cardBundle.name.Equals(currentCardBundle.name))
             {
                 return;
             } 
             else
             {
-                currentCardBundle = cardBundle;
-
-                if (loadedCardBundles.ContainsKey(cardBundle.name))
-                {
-                    currentCardBundleCards = loadedCardBundles[cardBundle.name];   
-                }
-                else
-                {
-                    currentCardBundleCards.Clear();
-
-                    foreach (var cardData in cardBundle.CardData)
-                    {
-                        var cardObject = Instantiate(cardPrefab);
-                        cardObject.SetActive(false);
-
-                        var cardScript = cardObject.GetComponent<Card>();
-                        cardScript.CardData = cardData;
-
-                        currentCardBundleCards.Add(cardScript.Id, cardScript);
-                    }
-                    loadedCardBundles.Add(cardBundle.name, currentCardBundleCards);
-                }
-            }
+                currentCardBundleCards = loadedCardBundles[cardBundle.name];
+            }  
         }
 
-        /// <summary> Populates <value>selectedCardsBuffer</value> from <value>allCards</value>. </summary>
+        /// <summary> Populates <value>selectedCards</value> from <value>currentCardBundleCards</value>. </summary>
         private void GenerateCards()
         {
             foreach (var card in selectedCards.Values)
@@ -206,7 +206,7 @@ namespace Assets.Scripts
 
             currentDifficulty = difficulties[currentDifficultyIndex];
 
-            PopulateCards();
+            ChangeCardBundle();
 
             GenerateCards();
 
