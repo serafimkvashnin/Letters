@@ -25,7 +25,7 @@ namespace Assets.Scripts.Cards
         private SpriteRenderer cardSpriteRenderer;
         private SpriteRenderer cardImageSpriteRenderer;
 
-        private Vector2 cardImageInitPosition;
+        public Vector2 CardImageInitPosition;
 
         public void Start()
         {
@@ -34,8 +34,6 @@ namespace Assets.Scripts.Cards
             var spriteRenderers = GetComponentsInChildren<SpriteRenderer>();
             cardSpriteRenderer = spriteRenderers[0];
             cardImageSpriteRenderer = spriteRenderers[1];
-
-            cardImageInitPosition = cardImage.transform.position;
 
             InitCard();
         }
@@ -50,7 +48,7 @@ namespace Assets.Scripts.Cards
         {
             cardImage.transform
                 .DOShakePosition(Constants.CardWrongDuration, 0.5f)
-                .SetEase(Ease.OutBounce).OnComplete(() => cardImage.transform.position = cardImageInitPosition);
+                .SetEase(Ease.OutBounce).OnComplete(() => cardImage.transform.position = CardImageInitPosition);
         }
 
         /// <summary> Populates <c>Card</c> with <c>CardData</c> properties. </summary>

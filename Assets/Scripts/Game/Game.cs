@@ -23,6 +23,7 @@ namespace Assets.Scripts
         [SerializeField]
         private ParticleSystem rightAnswerParticles;
 
+        private CardBundleData currentCardBundle;
         private CardBundleData[] cardBundles;
         private DifficultyData[] difficulties;
 
@@ -30,9 +31,11 @@ namespace Assets.Scripts
         private int currentDifficultyIndex;
 
         private Card cardToFind;
-        private Dictionary<int, Card> allCards;
+        private Dictionary<int, Card> currentCardBundleCards;
         private Dictionary<int, Card> selectedCards;
         private Dictionary<int, Card> shownCards;
+
+        private Dictionary<string, Dictionary<int, Card>> loadedCardBundles;
 
         private bool gameStarted = false;
 
@@ -47,9 +50,10 @@ namespace Assets.Scripts
             difficulties = Resources.LoadAll<DifficultyData>("ScriptableObjects/DifficultyData");
             difficulties = difficulties.ToList().OrderBy(card => card.CardsToSpawn).ToArray();
 
-            allCards = new Dictionary<int, Card>();
+            currentCardBundleCards = new Dictionary<int, Card>();
             selectedCards = new Dictionary<int, Card>();
             shownCards = new Dictionary<int, Card>();
+            loadedCardBundles = new Dictionary<string, Dictionary<int, Card>>();
 
             SwitchLevel();
         }
@@ -69,39 +73,59 @@ namespace Assets.Scripts
         }
 
         /// <summary> Populates <value>allCards</value> from <c>CardBundleData</c>. </summary>
-        private void PopulateCards(CardBundleData cardBundle)
+        private void PopulateCards()
         {
-            foreach (var card in allCards.Values)
+            var cardBundle = cardBundles[UnityEngine.Random.Range(0, cardBundles.Length)];
+
+            if (currentCardBundle != null && cardBundle.name.Equals(currentCardBundle.name))
             {
-                Destroy(card.gameObject);
-            }
-            allCards.Clear();
-
-            foreach (var cardData in cardBundle.CardData)
+                return;
+            } 
+            else
             {
-                var cardObject = Instantiate(cardPrefab);
-                cardObject.SetActive(false);
+                currentCardBundle = cardBundle;
 
-                var cardScript = cardObject.GetComponent<Card>();
-                cardScript.CardData = cardData;
+                if (loadedCardBundles.ContainsKey(cardBundle.name))
+                {
+                    currentCardBundleCards = loadedCardBundles[cardBundle.name];   
+                }
+                else
+                {
+                    currentCardBundleCards.Clear();
 
-                allCards.Add(cardScript.Id, cardScript);
+                    foreach (var cardData in cardBundle.CardData)
+                    {
+                        var cardObject = Instantiate(cardPrefab);
+                        cardObject.SetActive(false);
+
+                        var cardScript = cardObject.GetComponent<Card>();
+                        cardScript.CardData = cardData;
+
+                        currentCardBundleCards.Add(cardScript.Id, cardScript);
+                    }
+                    loadedCardBundles.Add(cardBundle.name, currentCardBundleCards);
+                }
             }
         }
 
         /// <summary> Populates <value>selectedCardsBuffer</value> from <value>allCards</value>. </summary>
         private void GenerateCards()
         {
+            foreach (var card in selectedCards.Values)
+            {
+                card.gameObject.SetActive(false);
+            }
             selectedCards.Clear();
 
-            List<Card> cards = allCards.Values.ToList();
+            List<Card> cards = currentCardBundleCards.Values.ToList();
             float squareRoot = Mathf.Sqrt(currentDifficulty.CardsToSpawn);
-            float halfSquareRoot = squareRoot / 2;
+            float halfSquareRoot = squareRoot / 2;  
             for (int i = 0; i < currentDifficulty.CardsToSpawn; i++)
             {
                 var selectedCard = GetRandomCard(cards, selectedCards);
                 selectedCard.OnClickEvent.AddListener(() => CardSelected(selectedCard));
                 var cardSize = selectedCard.GetComponent<BoxCollider2D>().size;
+
                 switch (currentDifficulty.CardsToSpawn)
                 {
                     case 3:
@@ -117,11 +141,13 @@ namespace Assets.Scripts
                         break;
                     default:
                         selectedCard.transform.position = new Vector2(
-                            -cardSize.x * halfSquareRoot + i / squareRoot * cardSize.x, 
+                            -cardSize.x * halfSquareRoot + i / squareRoot * cardSize.x,
                             -cardSize.y * halfSquareRoot + i % squareRoot * cardSize.y
                         );
                         break;
                 }
+
+                selectedCard.CardImageInitPosition = selectedCard.transform.position;
                 selectedCard.gameObject.SetActive(true);
 
                 if (!gameStarted)
@@ -180,8 +206,7 @@ namespace Assets.Scripts
 
             currentDifficulty = difficulties[currentDifficultyIndex];
 
-            var cardBundle = cardBundles[UnityEngine.Random.Range(0, cardBundles.Length)];
-            PopulateCards(cardBundle);
+            PopulateCards();
 
             GenerateCards();
 
